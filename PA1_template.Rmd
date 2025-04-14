@@ -1,25 +1,100 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+title: "PA1_template"
+output: html_document
 ---
 
+```{r}
+# Load data
+activity <- read.csv("activity.csv")
 
-## Loading and preprocessing the data
+# View structure
+str(activity)
 
+# Optional: Convert 'date' to Date format
+activity$date <- as.Date(activity$date)
+```
 
+# What is the mean total number of steps taken per day?
 
-## What is mean total number of steps taken per day?
+##In this step, I calculate the total number of steps taken per day by summing the number of steps across all intervals for each day.Then, I create a histogram to visualize the distribution of total steps per day.Finally, I compute the mean and median of the total number of steps taken per day.Note: In this part, missing values (NAs) are ignored.
 
+```{r}
+# Total number of steps per day
+total_steps <- aggregate(steps ~ date, data = activity, sum, na.rm = TRUE)
 
+# Plot histogram
+hist(total_steps$steps, main = "Total Steps per Day", xlab = "Steps", col = "skyblue")
 
-## What is the average daily activity pattern?
+# Mean and median
+mean_steps <- mean(total_steps$steps)
+median_steps <- median(total_steps$steps)
 
+mean_steps
+median_steps
+```
+# What is the average daily activity pattern?
 
+##In this step, I calculate the average number of steps taken in each 5-minute interval across all days.This helps identify periods of high and low activity throughout the day.A time series plot is generated to show these average values for each interval.I also identify the 5-minute interval with the highest average number of steps.
 
-## Imputing missing values
+```{r}
+# Mean steps per interval
+interval_avg <- aggregate(steps ~ interval, data = activity, mean, na.rm = TRUE)
 
+# Time series plot
+plot(interval_avg$interval, interval_avg$steps, type = "l", 
+     main = "Average Steps per 5-minute Interval", 
+     xlab = "Interval", ylab = "Average Steps", col = "blue")
 
+# Max average step interval
+interval_avg[which.max(interval_avg$steps), ]
+```
+# Imputing missing values
 
-## Are there differences in activity patterns between weekdays and weekends?
+##This step deals with missing data in the dataset (coded as NA).First, I calculate and report the total number of missing values.Then, I create a strategy to replace missing values — for this analysis, I use the mean number of steps for each 5-minute interval to fill the missing data.Next, I create a new dataset with the missing values filled in.  Finally, I re-calculate the total steps taken per day using the filled-in dataset and compare the new mean and median with the previous results.  This helps understand the impact of imputing missing data.
+
+```{r}
+# Number of missing values
+sum(is.na(activity$steps))
+
+# Impute using mean for that interval
+library(dplyr)
+activity_imputed <- activity %>%
+  group_by(interval) %>%
+  mutate(steps = ifelse(is.na(steps), mean(steps, na.rm = TRUE), steps))
+
+# Histogram after imputation
+total_steps_imputed <- activity_imputed %>%
+  group_by(date) %>%
+  summarize(steps = sum(steps))
+
+hist(total_steps_imputed$steps, main = "Steps per Day (Imputed)", xlab = "Steps", col = "orange")
+
+# Mean and Median
+mean(total_steps_imputed$steps)
+median(total_steps_imputed$steps)
+```
+# Are there differences in activity patterns between weekdays and weekends?
+
+##In this step, I investigate if activity patterns differ between weekdays and weekends.  First, I create a new factor variable in the dataset that labels each date as either “weekday” or “weekend”.Then, I calculate the average number of steps for each 5-minute interval separately for weekdays and weekends.Finally, I generate a panel plot (time series plot for each category) to visually compare the differences in activity patterns across the two groups.
+
+```{r}
+# Create weekday/weekend factor
+activity_imputed$day_type <- ifelse(weekdays(activity_imputed$date) %in% c("Saturday", "Sunday"), 
+                                    "weekend", "weekday")
+
+# Average steps by interval and day_type
+interval_daytype <- activity_imputed %>%
+  group_by(interval, day_type) %>%
+  summarize(avg_steps = mean(steps), .groups = 'drop')
+
+# Panel plot
+library(ggplot2)
+ggplot(interval_daytype, aes(x = interval, y = avg_steps)) +
+  geom_line(color = "darkgreen") +
+  facet_wrap(~day_type, nrow = 2) +
+  labs(title = "Average Steps by Interval: Weekday vs Weekend", x = "Interval", y = "Steps")
+```
+
+```{r}
+rmarkdown::render("PA1_template.Rmd")
+```
